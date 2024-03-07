@@ -115,5 +115,3 @@ for link in links:
 
 master_filings.to_excel('master.xlsx')
 error_table.to_excel('errors.xlsx')
-
-#Change
