@@ -145,7 +145,6 @@ def fix_page_numbers(normalized_text, repaired_pages):
             end_page = result
             end_index = ind
 
-
     return start_index, end_index
 
 ######### FIND PAGES OF MD&A #########
