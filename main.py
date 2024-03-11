@@ -2,21 +2,21 @@
 import re
 import requests
 import source
-import unicodedata
 import pandas as pd
 import numpy as np
 from bs4 import BeautifulSoup
-from itertools import takewhile
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
 
 ######### CONTROL VARIABLES #########
 
 error_table = pd.DataFrame(columns=['Ticker', 'Year', 'Reason', 'Explenation', 'Link'])
-
+linkPath = "allLinks.csv"
+docidtofirmPath = "results/docidtofirm.csv"
+errorsPath= "results/errors.csv"
+documentsPath = "results/documents.txt"
+documentIdsPath= "results/document_ids.txt"
 ######### IMPORT AND FORMAT DATA #########
 
-linkData = pd.read_csv('/Users/tombeecken/Desktop/Dissertation/Diss_Code/10-Ks/allLinks.csv')
+linkData = pd.read_csv(linkPath)
 links = linkData['link'].tolist()
 name = linkData['CompName'].tolist()
 tick = linkData['CompTick'].tolist()
@@ -26,22 +26,16 @@ date = linkData['reportDate'].tolist()
 ########################
 # Delete for full loop #
 ########################
-links = links[10:30]
-tick = tick[10:30]
-accnum = accnum[10:30]
-date = date[10:30]
-year = [0]*len(date)
+links = links[10:20]
+tick = tick[10:20]
+accnum = accnum[10:20]
+date = date[10:20]
+year = [x[0:4] for x in date]
 
-for i in range(0,len(date)):
-    year[i] = date[i][0:4]
-
-########################
-
-#master_filings = pd.DataFrame({'ticker':tick, 'date':date, 'accessionNumber':accnum, 'md&a':np.nan})
 docidtofirm = pd.DataFrame({'document_id':accnum, 'firm_id':tick, 'date':year})
 
-documents = open("documents.txt", "w")
-document_ids = open("document_ids.txt", "w")
+documents = open(documentsPath, "w")
+document_ids = open(documentIdsPath, "w")
 
 count = 0
 
@@ -69,8 +63,8 @@ for link in links:
     try:
         pages = source.split_doc(doc_text)
         print(f"Split pages for {tick[count]} {date[count][0:4]}, we have {len(pages)} Pages!")
-    except:
-        print(f"Error 2 : Couldn't split pages")
+    except Exception as e:
+        print(f"Error 2 : Couldn't split pages: {e}")
         error = {'Ticker':tick[count], 'Year':date[count][0:4], 'Reason':'Error 2', 'Explanation':'Couldn\'t split pages', 'Link':links[count]}
         new_row = pd.DataFrame(data = error, index = [0])
         error_table = pd.concat([error_table, new_row], ignore_index = True)
@@ -79,16 +73,16 @@ for link in links:
 
     ################### CLEAN + NORMALIZE DOCUMENT ###################
 
-    try:
-        normalized_text, repaired_pages = source.clean(pages)
-        print(f"Normalized pages for {tick[count]} {date[count][0:4]}")
-    except:
-        print(f"Error 3 : Couldn't normalized pages")
-        error = {'Ticker':tick[count], 'Year':date[count][0:4], 'Reason':'Error 3', 'Explanation':'Couldn\'t normalized pages', 'Link':links[count]}
-        new_row = pd.DataFrame(data = error, index = [0])
-        error_table = pd.concat([error_table, new_row], ignore_index = True)
-        count += 1
-        continue
+    #try:
+    normalized_text, repaired_pages = source.clean(pages)
+    print(f"Normalized pages for {tick[count]} {date[count][0:4]}")
+    # except:
+    #     print(f"Error 3 : Couldn't normalized pages:")
+    #     error = {'Ticker':tick[count], 'Year':date[count][0:4], 'Reason':'Error 3', 'Explanation':'Couldn\'t normalized pages', 'Link':links[count]}
+    #     new_row = pd.DataFrame(data = error, index = [0])
+    #     error_table = pd.concat([error_table, new_row], ignore_index = True)
+    #     count += 1
+    #     continue
 
     ################### GRAB INDEX NUMBERS ###################
 
@@ -118,8 +112,6 @@ for link in links:
     
     ################### Insert section into DataFrame and text_file ###################
 
-    #master_filings.loc[master_filings['accessionNumber'] == accnum[count], 'md&a'] = md_and_a
-
     if md_and_a != "":
         documents.write(md_and_a + '\n')
         document_ids.write(accnum[count] + '\n')
@@ -129,7 +121,5 @@ for link in links:
 ################### EXPORT ###################
 
 documents.close()
-docidtofirm.to_csv('dicttofirm.csv')
-
-#master_filings.to_excel('master.xlsx')
-#error_table.to_excel('errors.xlsx')
+docidtofirm.to_csv(docidtofirmPath)
+error_table.to_csv(errorsPath)

@@ -6,7 +6,6 @@ import unicodedata
 import pandas as pd
 import numpy as np
 from bs4 import BeautifulSoup
-from itertools import takewhile
 
 ######### DECODER FUNCTION #########
 
@@ -99,7 +98,7 @@ def clean(pages):
     for index, page in enumerate(pages):
 
         # pass it through the parser
-        page_soup = BeautifulSoup(page,'html5')
+        page_soup = BeautifulSoup(page,'html5lib')
         
         # define the page number.
         page_number = index + 1
