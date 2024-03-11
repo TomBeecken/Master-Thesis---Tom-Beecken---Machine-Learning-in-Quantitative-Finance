@@ -7,6 +7,8 @@ import pandas as pd
 import numpy as np
 from bs4 import BeautifulSoup
 from itertools import takewhile
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
 
 ######### CONTROL VARIABLES #########
 
@@ -24,13 +26,22 @@ date = linkData['reportDate'].tolist()
 ########################
 # Delete for full loop #
 ########################
-links = links[1:200]
-tick = tick[1:200]
-accnum = accnum[1:200]
-date = date[1:200]
+links = links[10:30]
+tick = tick[10:30]
+accnum = accnum[10:30]
+date = date[10:30]
+year = [0]*len(date)
+
+for i in range(0,len(date)):
+    year[i] = date[i][0:4]
+
 ########################
 
-master_filings = pd.DataFrame({'ticker':tick, 'date':date, 'accessionNumber':accnum, 'md&a':np.nan})
+#master_filings = pd.DataFrame({'ticker':tick, 'date':date, 'accessionNumber':accnum, 'md&a':np.nan})
+docidtofirm = pd.DataFrame({'document_id':accnum, 'firm_id':tick, 'date':year})
+
+documents = open("documents.txt", "w")
+document_ids = open("document_ids.txt", "w")
 
 count = 0
 
@@ -105,13 +116,20 @@ for link in links:
         count += 1
         continue
     
-    ################### Insert section into DataFrame ###################
+    ################### Insert section into DataFrame and text_file ###################
 
-    master_filings.loc[master_filings['accessionNumber'] == accnum[count], 'md&a'] = md_and_a
+    #master_filings.loc[master_filings['accessionNumber'] == accnum[count], 'md&a'] = md_and_a
+
+    if md_and_a != "":
+        documents.write(md_and_a + '\n')
+        document_ids.write(accnum[count] + '\n')
 
     count += 1
 
 ################### EXPORT ###################
 
-master_filings.to_excel('master.xlsx')
-error_table.to_excel('errors.xlsx')
+documents.close()
+docidtofirm.to_csv('dicttofirm.csv')
+
+#master_filings.to_excel('master.xlsx')
+#error_table.to_excel('errors.xlsx')
