@@ -9,11 +9,11 @@ from bs4 import BeautifulSoup
 ######### CONTROL VARIABLES #########
 
 error_table = pd.DataFrame(columns=['Ticker', 'Year', 'Reason', 'Explenation', 'Link'])
-linkPath = "allLinks.csv"
-docidtofirmPath = "results/docidtofirm.csv"
-errorsPath= "results/errors.csv"
-documentsPath = "results/documents.txt"
-documentIdsPath= "results/document_ids.txt"
+linkPath = "../input/allLinks.csv"
+docidtofirmPath = "../results/docidtofirm.csv"
+errorsPath= "../results/errors.csv"
+documentsPath = "../results/documents.txt"
+documentIdsPath= "../results/document_ids.txt"
 ######### IMPORT AND FORMAT DATA #########
 
 linkData = pd.read_csv(linkPath)
