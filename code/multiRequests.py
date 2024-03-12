@@ -5,7 +5,6 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from threading import Thread, local
 import json
-import pickle5 as pickle
 from tqdm import tqdm
 import os
 
