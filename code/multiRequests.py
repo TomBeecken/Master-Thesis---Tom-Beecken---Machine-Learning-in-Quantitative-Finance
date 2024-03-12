@@ -1,39 +1,33 @@
 import pandas as pd
 import requests
-from requests.sessions import Session
-import time
-from concurrent.futures import ThreadPoolExecutor
-from threading import Thread, local
 import json
-from tqdm import tqdm
 import os
+import time
+from tqdm import tqdm
+from concurrent.futures import ThreadPoolExecutor
 
 linkPath = "../input/allLinks.csv"
 linkData = pd.read_csv(linkPath)
-links = linkData['link'].tolist()
-maxLinks=len(links)
+links = linkData['link'].tolist()[:20]
+maxLinks = len(links)
 headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36'}
 directory = '../results/content'
 
-thread_local = local()
+# Maximal zulässige Anfragen pro Sekunde
+MAX_REQUESTS_PER_SECOND = 10
 
-def get_session() -> Session:
-    if not hasattr(thread_local, 'session'):
-        thread_local.session = requests.Session()
-    return thread_local.session
-
-def download_link(url: str):
-    session = get_session()
+def download_link(url):
     try:
-        with session.get(url, headers=headers) as response:
-            print(f'Read {len(response.content)} from {url}')
-            save_content(url, response.content)
-    except requests.exceptions.ChunkedEncodingError as e:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()  # Raise an exception for HTTP errors
+        print(f'Read {len(response.content)} from {url}')
+        save_content(url, response.content)
+    except requests.exceptions.RequestException as e:
         print(f"Error downloading {url}: {e}")
 
 def download_all(urls: list) -> None:
     with ThreadPoolExecutor(max_workers=50) as executor:
-        #tqdm um einen Fortschrittsbalken zu erstellen
+        # tqdm um einen Fortschrittsbalken zu erstellen
         for _ in tqdm(executor.map(download_link, urls), total=len(urls)):
             pass
 
@@ -41,14 +35,8 @@ def save_content(url, content):
     try:
         with open(f"{directory}/{url.replace('/', '_')}", 'wb') as f:
             f.write(content)
-            print("Saved file")
     except Exception as e:
         print("File Saving did not work: ", e)
-
-def load_response(url):
-    with open(f"{directory}/{url.replace('/', '_')}", 'rb') as f:
-        content = f.read()
-        return content
 
 def save_to_do_links(data):
     try:
@@ -81,4 +69,13 @@ try:
     save_to_do_links(links)
 except:
     pass
-download_all(links)
+
+# Berechne die erforderliche Wartezeit zwischen den Anfragen, um maximal 10 Anfragen pro Sekunde zu gewährleisten
+if links:
+    start_time = time.time()
+    for link in links:
+        download_link(link)
+        elapsed_time = time.time() - start_time
+        if elapsed_time < 1 / MAX_REQUESTS_PER_SECOND:
+            time.sleep(1 / MAX_REQUESTS_PER_SECOND - elapsed_time)
+            start_time = time.time()
