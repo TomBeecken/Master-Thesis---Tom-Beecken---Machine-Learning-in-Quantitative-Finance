@@ -28,13 +28,13 @@ def restore_windows_1252_characters(restore_string):
 ######### DEFINE SOUP + GET CODE #########
 
 def load_response(url):
-    with open("../input/content.pickle", 'rb') as f:
-        response = pickle.load(f)
-    return response.get(url)
+    with open(f"../results/content/{url.replace('/', '_')}", 'rb') as f:
+        content = f.read()
+        return content
 
 def get_code(url):
     response_content = load_response(url)
-    soup = BeautifulSoup(response, 'html.parser')
+    soup = BeautifulSoup(response_content, 'html.parser')
     for filing_document in soup.find_all('document'): 
         if soup.find('document').type.find(string=True, recursive=False).strip() == '10-K':
             document_code = filing_document.extract()

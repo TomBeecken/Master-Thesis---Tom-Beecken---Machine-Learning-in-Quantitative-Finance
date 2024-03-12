@@ -24,15 +24,6 @@ accnum = linkData['accessionNumber'].tolist()
 date = linkData['reportDate'].tolist()
 year = [str(x)[0:4] for x in date]
 
-########################
-# Delete for full loop #
-########################
-links = links[10:20]
-tick = tick[10:20]
-accnum = accnum[10:20]
-date = date[10:20]
-year = year[10:20]
-
 
 docidtofirm = pd.DataFrame({'document_id':accnum, 'firm_id':tick, 'date':year})
 documents = open(documentsPath, "w")
@@ -44,7 +35,6 @@ count = 0
 ################### START LOOP ###################
 
 for link in links:
-    source.get_code(link)
 
     print('-'*80)
     print(f"Grabbing code for {tick[count]} {date[count][0:4]}")
