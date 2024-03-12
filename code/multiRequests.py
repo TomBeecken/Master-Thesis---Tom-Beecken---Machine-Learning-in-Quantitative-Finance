@@ -14,7 +14,6 @@ linkData = pd.read_csv(linkPath)
 links = linkData['link'].tolist()
 maxLinks=len(links)
 headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36'}
-filename = "../results/content.pickle"
 directory = '../results/content'
 
 thread_local = local()
@@ -77,8 +76,10 @@ def load_urls():
         print("File Loading did not work: ", e)
         return {}
 
-
-urls = load_urls()
-links = [link for link in links if link not in urls]
-save_to_do_links(links)
+try:
+    urls = load_urls()
+    links = [link for link in links if link not in urls]
+    save_to_do_links(links)
+except:
+    pass
 download_all(links)
