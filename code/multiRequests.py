@@ -7,12 +7,15 @@ from threading import Thread, local
 import json
 import pickle5 as pickle
 from tqdm import tqdm
+import os
 
 linkPath = "../input/allLinks.csv"
 linkData = pd.read_csv(linkPath)
 links = linkData['link'].tolist()
+maxLinks=len(links)
 headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36'}
 filename = "../results/content.pickle"
+directory = '../results/content'
 
 thread_local = local()
 
@@ -26,36 +29,56 @@ def download_link(url: str):
     try:
         with session.get(url, headers=headers) as response:
             print(f'Read {len(response.content)} from {url}')
-            content[url] = response.content
+            save_content(url, response.content)
     except requests.exceptions.ChunkedEncodingError as e:
         print(f"Error downloading {url}: {e}")
 
 def download_all(urls: list) -> None:
     with ThreadPoolExecutor(max_workers=50) as executor:
         #tqdm um einen Fortschrittsbalken zu erstellen
-        for url in tqdm(urls, desc="Downloading"):
-            download_link(url)
-            # Alle 50 URLS speichern
-            if urls.index(url) % 15 == 0 and urls.index(url) != 0:
-                save_content()
+        for _ in tqdm(executor.map(download_link, urls), total=len(urls)):
+            pass
 
-def load_content():
+def save_content(url, content):
     try:
-        with open(filename, 'rb') as f:
-            return pickle.load(f)
+        with open(f"{directory}/{url.replace('/', '_')}", 'wb') as f:
+            f.write(content)
+            print("Saved file")
+    except Exception as e:
+        print("File Saving did not work: ", e)
+
+def load_response(url):
+    with open(f"{directory}/{url.replace('/', '_')}", 'rb') as f:
+        content = f.read()
+        return content
+
+def save_to_do_links(data):
+    try:
+        with open("../results/links", 'w') as f:
+            json.dump(data, f)
+        print("Data saved to JSON file successfully.")
+    except Exception as e:
+        print("Failed to save data to JSON file:", e)
+
+def load_urls():
+    try:
+        if os.listdir(directory):
+            print("Data loaded from Directory.")
+            return [x.replace("_", "/") for x in os.listdir(directory)]
+        else:
+            try:
+                with open("../results/links", 'r') as f:
+                    data = json.load(f)
+                print("Data loaded from JSON file successfully.")
+                return data
+            except Exception as e:
+                print("Failed to load data from JSON file:", e)
     except Exception as e:
         print("File Loading did not work: ", e)
         return {}
 
-def save_content():
-    try:
-        with open(filename, 'wb') as f:
-            pickle.dump(content, f, protocol=pickle.HIGHEST_PROTOCOL)
-            print("Saved file")
-    except Exception as e:
-        print("File Saving did not work: ", e)
-    
-content = load_content()
-print(len(content.keys()))
-links = [link for link in links if link not in content.keys()]
+
+urls = load_urls()
+links = [link for link in links if link not in urls]
+save_to_do_links(links)
 download_all(links)
