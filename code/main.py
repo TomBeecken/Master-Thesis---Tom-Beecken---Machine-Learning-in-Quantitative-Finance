@@ -22,6 +22,7 @@ name = linkData['CompName'].tolist()
 tick = linkData['CompTick'].tolist()
 accnum = linkData['accessionNumber'].tolist()
 date = linkData['reportDate'].tolist()
+year = [str(x)[0:4] for x in date]
 
 ########################
 # Delete for full loop #
@@ -30,18 +31,20 @@ links = links[10:20]
 tick = tick[10:20]
 accnum = accnum[10:20]
 date = date[10:20]
-year = [x[0:4] for x in date]
+year = year[10:20]
+
 
 docidtofirm = pd.DataFrame({'document_id':accnum, 'firm_id':tick, 'date':year})
-
 documents = open(documentsPath, "w")
 document_ids = open(documentIdsPath, "w")
 
+maxCount=len(links)
 count = 0
 
 ################### START LOOP ###################
 
 for link in links:
+    source.get_code(link)
 
     print('-'*80)
     print(f"Grabbing code for {tick[count]} {date[count][0:4]}")
@@ -100,8 +103,9 @@ for link in links:
     ################### FIND, EXTRACT AND COMBINE MD&A SECTION ###################
 
     try:
-        md_and_a = source.find_mda(repaired_pages, start_index, end_index)
-        print(f'MD & A section for {tick[count]} {date[count][0:4]} sucessfully obtained!')
+        if (start_index < end_index):
+            md_and_a = source.find_mda(repaired_pages, start_index, end_index)
+            print(f'MD & A section for {tick[count]} {date[count][0:4]} sucessfully obtained!')
     except:
         print(f"Error 6 : Extracting MD & A failed")
         error = {'Ticker':tick[count], 'Year':date[count][0:4], 'Reason':'Error 6', 'Explanation':'Extracting MD & A failed', 'Link':links[count]}
@@ -117,6 +121,7 @@ for link in links:
         document_ids.write(accnum[count] + '\n')
 
     count += 1
+    print(f"Status: {count/maxCount*100}%: {count}")
 
 ################### EXPORT ###################
 

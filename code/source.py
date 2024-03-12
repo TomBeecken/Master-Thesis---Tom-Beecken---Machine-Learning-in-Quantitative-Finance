@@ -27,15 +27,15 @@ def restore_windows_1252_characters(restore_string):
 
 ######### DEFINE SOUP + GET CODE #########
 
-def get_code(link):
-    # define the url and header for chrome access
-    url = link
-    headers = {'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36'}
-    response = requests.get(url, headers=headers)
-    soup = BeautifulSoup(response.content, 'html.parser')
+def load_response(url):
+    with open("../input/content.pickle", 'rb') as f:
+        response = pickle.load(f)
+    return response.get(url)
 
+def get_code(url):
+    response_content = load_response(url)
+    soup = BeautifulSoup(response, 'html.parser')
     for filing_document in soup.find_all('document'): 
-
         if soup.find('document').type.find(string=True, recursive=False).strip() == '10-K':
             document_code = filing_document.extract()
             document_text = filing_document.find('text').extract()

@@ -278,6 +278,7 @@ pathspec=0.10.3=py310hecd8cb5_0
 patsy=0.5.3=py310hecd8cb5_0
 pcre2=10.42=h9b97e30_0
 pexpect=4.8.0=pyhd3eb1b0_3
+pickle5=0.0.11=pypi_0
 pickleshare=0.7.5=pyhd3eb1b0_1003
 pillow=10.2.0=py310h6c40b1e_0
 pip=23.3.1=py310hecd8cb5_0
