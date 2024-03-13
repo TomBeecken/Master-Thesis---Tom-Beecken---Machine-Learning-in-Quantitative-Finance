@@ -59,8 +59,11 @@ def write_error(link, tick, accnum, date, year, reason, explanation):
     
     errors.append(error)
     
-    with open(errorsPath, 'w') as file:
-        json.dump(errors, file, indent=4)
+    try:
+        with open(errorsPath, 'w') as file:
+            json.dump(errors, file, indent=4)
+    except:
+        pass
 
 def count_errors():
     try:
