@@ -17,7 +17,7 @@ documentIdsPath = "../results/document_ids.txt"
 
 # Read input data from CSV file
 linkData = pd.read_csv(linkPath)
-#linkData = linkData.head(20) #Limiting data to first 20 rows for testing  
+linkData = linkData.head(20)  # Limiting data to first 20 rows for demonstration
 links = linkData['link'].tolist()  # Extracting 'link' column and converting to list
 
 # Creating DataFrame for document to firm mapping
@@ -83,6 +83,11 @@ def process_document(link, pbar):
     date = str(linkData.loc[linkData['link'] == link, 'reportDate'].iloc[0])[0:4]
     year = str(linkData.loc[linkData['link'] == link, 'reportDate'].iloc[0])[0:4]
 
+    # Check if accnum already exists in document_ids
+    if str(accnum) in open(documentIdsPath).read():
+        pbar.update(1)  # Update progress bar
+        return
+
     try:
         doc_code, doc_text = source.get_code(link)
         pbar.set_description(f"Grabbing code for {tick} {date}")
@@ -130,7 +135,7 @@ def process_document(link, pbar):
             documents.write(md_and_a + '\n')
             document_ids.write(str(accnum) + '\n')
 
-    pbar.update(1)
+    pbar.update(1)  # Update progress bar
 
 # Create progress bar
 with tqdm(total=maxCount) as pbar:
