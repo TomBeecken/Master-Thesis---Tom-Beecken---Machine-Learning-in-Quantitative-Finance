@@ -3,14 +3,12 @@ import pandas as pd  # Importing pandas for data manipulation
 import source  # Importing the source module, assumed to contain necessary functions
 from multiprocessing import Pool, cpu_count  # Importing multiprocessing for parallel processing
 from tqdm import tqdm  # Importing tqdm for displaying progress bars
-import traceback  # Importing traceback module to print full error trace
 
 ######### CONTROL VARIABLES #########
 
 # Define paths to input and output files
 linkPath = "../input/allLinks.csv"
 docidtofirmPath = "../results/docidtofirm.csv"
-errorsPath = "../results/errors.json"
 documentsPath = "../results/documents.txt"
 documentIdsPath = "../results/document_ids.txt"
 
@@ -30,12 +28,6 @@ try:
         if accnum in accslink:
             del accslink[accnum]
     links = list(accslink.values())
-    #remove error links
-    with open(errorsPath, 'r') as file:
-        data = file.read()
-        errors = json.loads(data)
-        error_links = [error['Link'] for error in errors]
-        links = [link for link in links if link not in error_links]
 except:
     pass
 
@@ -47,50 +39,6 @@ docidtofirm = pd.DataFrame({
 })
 docidtofirm.to_csv(docidtofirmPath, index=False)  # Writing docidtofirm DataFrame to CSV file
 
-def write_error(link, tick, accnum, date, year, reason, explanation):
-    """
-    Function to write error information to errors.json file.
-
-    Args:
-    - link: Link associated with the error
-    - tick: Ticker associated with the error
-    - accnum: Accession number associated with the error
-    - date: Date associated with the error
-    - year: Year associated with the error
-    - reason: Reason for the error
-    - explanation: Explanation of the error
-    """
-    error = {
-        'Link': link,
-        'Ticker': tick,
-        'Accnum': accnum,
-        'Year': year,
-        'Reason': reason,
-        'Explanation': explanation
-    }
-    try:
-        with open(errorsPath, 'r') as file:
-            data = file.read()
-            errors = json.loads(data) if data.strip() else []
-    except FileNotFoundError:
-        errors = []
-    
-    errors.append(error)
-    
-    try:
-        with open(errorsPath, 'w') as file:
-            json.dump(errors, file, indent=4)
-    except:
-        pass
-
-def count_errors():
-    try:
-        with open(errorsPath, 'r') as file:
-            data = file.read()
-            errors = json.loads(data) if data.strip() else []
-    except FileNotFoundError:
-        return 0
-    return len(errors)
 
 def process_document(link):
     """
@@ -126,9 +74,8 @@ def process_document(link):
                 documents.write(md_and_a + '\n')
                 document_ids.write(str(accnum) + '\n')
     
-    except Exception as e:
-        traceback.print_exc()  # Print full traceback
-        write_error(link, tick, accnum, date, year, 'Error', str(e))
+    except:
+        pass
 
 # Create progress bar
 maxCount = len(links)  # Maximum count for progress bar
@@ -137,4 +84,3 @@ if __name__ == '__main__':
         with Pool(cpu_count()) as pool:
             for _ in tqdm(pool.imap_unordered(process_document, links), total=maxCount):
                 pbar.update(1)
-print(count_errors())
