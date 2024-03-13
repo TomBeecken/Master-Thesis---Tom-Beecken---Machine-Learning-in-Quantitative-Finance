@@ -88,11 +88,7 @@ def process_document(link):
         pages = source.split_doc(doc_text)
         normalized_text, repaired_pages = source.clean(pages)
         start_index, end_index = source.fix_page_numbers(normalized_text, repaired_pages)
-
-        if start_index < end_index:
-            md_and_a = source.find_mda(repaired_pages, start_index, end_index)
-        else:
-            return
+        md_and_a = source.find_mda(repaired_pages, start_index, end_index)
         
         if md_and_a != "":
             with open(documentsPath, "a") as documents, open(documentIdsPath, "a") as document_ids:
