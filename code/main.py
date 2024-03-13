@@ -62,6 +62,16 @@ def write_error(link, tick, accnum, date, year, reason, explanation):
     with open(errorsPath, 'w') as file:
         json.dump(errors, file, indent=4)
 
+def count_errors():
+    try:
+        with open(errorsPath, 'r') as file:
+            data = file.read()
+            errors = json.loads(data) if data.strip() else []
+    except FileNotFoundError:
+        return 0
+    
+    return len(errors)
+
 def process_document(link):
     """
     Function to process document for a given link.
@@ -107,3 +117,4 @@ if __name__ == '__main__':
         with Pool(cpu_count()) as pool:
             for _ in tqdm(pool.imap_unordered(process_document, links), total=maxCount):
                 pbar.update(1)
+print(count_errors())
