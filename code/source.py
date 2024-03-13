@@ -123,8 +123,9 @@ def clean(pages):
 ######### FIX PAGE NUMBERS + EXTRACT INDEX #########
 
 def fix_page_numbers(normalized_text, repaired_pages):
+    start_index = None
+    end_index = None
 
-    # identify page number difference
     for ind, text in normalized_text.items():
         nospace = text.replace(' ', '')
         if re.search(r'partiitem1\.business', nospace, re.IGNORECASE):
@@ -144,6 +145,10 @@ def fix_page_numbers(normalized_text, repaired_pages):
             end_page = result
             end_index = ind
 
+    # Überprüfen, ob start_index und end_index korrekt zugewiesen wurden
+    if start_index is None or end_index is None:
+        raise ValueError("Start- oder Endindex nicht korrekt zugewiesen.")
+        
     return start_index, end_index
 
 ######### FIND PAGES OF MD&A #########
