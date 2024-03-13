@@ -28,7 +28,7 @@ def restore_windows_1252_characters(restore_string):
 ######### DEFINE SOUP + GET CODE #########
 
 def load_response(url):
-    with open(f"../results/content/{url.replace('/', '_')}", 'rb') as f:
+    with open(f"results/content/{url.replace('/', '_')}", 'rb') as f:
         content = f.read()
         return content
 
@@ -147,7 +147,11 @@ def fix_page_numbers(normalized_text, repaired_pages):
 
     # Überprüfen, ob start_index und end_index korrekt zugewiesen wurden
     if start_index is None or end_index is None:
-        raise ValueError("Start- oder Endindex nicht korrekt zugewiesen.")
+        for ind, text in normalized_text.items():
+            # Extract href attribute from the first matching link
+            if "Item 7. " in text:
+                start_index = ind
+                break
         
     return start_index, end_index
 
