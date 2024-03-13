@@ -18,7 +18,7 @@ documentIdsPath = "../results/document_ids.txt"
 # Read input data from CSV file
 linkData = pd.read_csv(linkPath)
 #linkData = linkData.head(20)  # Limiting data to first 20 rows for demonstration
-links = linkData['link'].tolist()  # Extracting 'link' column and converting to list
+links = set(linkData['link'].tolist())  # Extracting 'link' column and converting to list
 
 # Creating DataFrame for document to firm mapping
 docidtofirm = pd.DataFrame({
