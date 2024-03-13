@@ -51,10 +51,13 @@ def write_error(link, tick, accnum, date, year, reason, explanation):
     }
     try:
         with open(errorsPath, 'r') as file:
-            errors = json.load(file)
+            data = file.read()
+            errors = json.loads(data) if data.strip() else []
     except FileNotFoundError:
         errors = []
+    
     errors.append(error)
+    
     with open(errorsPath, 'w') as file:
         json.dump(errors, file, indent=4)
 
