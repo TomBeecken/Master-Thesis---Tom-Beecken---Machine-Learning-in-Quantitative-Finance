@@ -13,7 +13,7 @@ documentIdsPath = "../results/document_ids.txt"
 
 ######### IMPORT AND FORMAT DATA #########
 
-linkData = pd.read_csv(linkPath).head(20)
+linkData = pd.read_csv(linkPath)
 links = linkData['link'].tolist()
 
 # Improve efficiency by reading document IDs once
