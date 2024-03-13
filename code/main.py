@@ -100,6 +100,7 @@ def process_document(link):
                 document_ids.write(str(accnum) + '\n')
     
     except Exception as e:
+        print(f"Error: {e}")
         write_error(link, tick, accnum, date, year, 'Error', str(e))
 
 # Create progress bar
