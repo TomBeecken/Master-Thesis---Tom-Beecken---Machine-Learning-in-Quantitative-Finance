@@ -76,8 +76,11 @@ def process_document(link):
         year = str(linkData.loc[linkData['link'] == link, 'reportDate'].iloc[0])[0:4]
 
         # Check if accnum already exists in document_ids
-        if str(accnum) in [str(x)[:-1] for x in open(documentIdsPath).readlines()]:
-            return
+        try:
+            if str(accnum) in [str(x)[:-1] for x in open(documentIdsPath).readlines()]:
+                return
+        except:
+            pass
 
         doc_code, doc_text = source.get_code(link)
 
