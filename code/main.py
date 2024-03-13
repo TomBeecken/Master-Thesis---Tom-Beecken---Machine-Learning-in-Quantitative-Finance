@@ -1,7 +1,7 @@
 import json  # Importing the json module for handling JSON data
-import threading  # Importing the threading module for creating and managing threads
 import pandas as pd  # Importing pandas for data manipulation
 import source  # Importing the source module, assumed to contain necessary functions
+from multiprocessing import Pool, cpu_count  # Importing multiprocessing for parallel processing
 from tqdm import tqdm  # Importing tqdm for displaying progress bars
 
 ######### CONTROL VARIABLES #########
@@ -28,14 +28,6 @@ docidtofirm = pd.DataFrame({
 })
 docidtofirm.to_csv(docidtofirmPath, index=False)  # Writing docidtofirm DataFrame to CSV file
 
-# Opening files for writing documents and document IDs in append mode
-documents = open(documentsPath, "a")  # Open in append mode
-document_ids = open(documentIdsPath, "a")  # Open in append mode
-
-maxCount = len(links)  # Maximum count for progress bar
-
-lock = threading.Lock()  # Lock for thread-safe writing to errors.json
-
 def write_error(link, tick, accnum, date, year, reason, explanation):
     """
     Function to write error information to errors.json file.
@@ -57,100 +49,59 @@ def write_error(link, tick, accnum, date, year, reason, explanation):
         'Reason': reason,
         'Explanation': explanation
     }
-    with lock:
-        try:
-            with open(errorsPath, 'r') as file:
-                errors = json.load(file)
-        except FileNotFoundError:
-            errors = []
-        errors.append(error)
-        with open(errorsPath, 'w') as file:
-            json.dump(errors, file, indent=4)
+    try:
+        with open(errorsPath, 'r') as file:
+            errors = json.load(file)
+    except FileNotFoundError:
+        errors = []
+    errors.append(error)
+    with open(errorsPath, 'w') as file:
+        json.dump(errors, file, indent=4)
 
-def process_document(link, pbar):
+def process_document(link):
     """
     Function to process document for a given link.
 
     Args:
     - link: Link of the document to be processed
-    - pbar: Progress bar instance to track progress
     """
-    global documents, document_ids
-
-    # Extracting relevant information from linkData based on the link
-    tick = linkData.loc[linkData['link'] == link, 'CompTick'].iloc[0]
-    accnum = linkData.loc[linkData['link'] == link, 'accessionNumber'].iloc[0]
-    date = str(linkData.loc[linkData['link'] == link, 'reportDate'].iloc[0])[0:4]
-    year = str(linkData.loc[linkData['link'] == link, 'reportDate'].iloc[0])[0:4]
-
-    # Check if accnum already exists in document_ids
-    if str(accnum) in [str(x)[:-1] for x in open(documentIdsPath).readlines()]:
-        pbar.update(1)  # Update progress bar
-        return
-
     try:
+        # Extracting relevant information from linkData based on the link
+        tick = linkData.loc[linkData['link'] == link, 'CompTick'].iloc[0]
+        accnum = linkData.loc[linkData['link'] == link, 'accessionNumber'].iloc[0]
+        date = str(linkData.loc[linkData['link'] == link, 'reportDate'].iloc[0])[0:4]
+        year = str(linkData.loc[linkData['link'] == link, 'reportDate'].iloc[0])[0:4]
+
+        # Check if accnum already exists in document_ids
+        if str(accnum) in [str(x)[:-1] for x in open(documentIdsPath).readlines()]:
+            return
+
         doc_code, doc_text = source.get_code(link)
-        pbar.set_description(f"Grabbing code for {tick} {date}")
-    except Exception as e:
-        print(f"Error 1 : Couldn't scrape code: {e}")
-        write_error(link, tick, accnum, date, year, 'Error 1', 'Couldn\'t scrape code')
-        return
-    
-    # Similar try-except blocks for subsequent steps of document processing
-    try:
+
+        # Similar try-except blocks for subsequent steps of document processing
         pages = source.split_doc(doc_text)
-        pbar.set_description(f"Split pages for {tick} {date}, we have {len(pages)} Pages!")
-    except Exception as e:
-        print(f"Error 2 : Couldn't split pages: {e}")
-        write_error(link, tick, accnum, date, year, 'Error 2', 'Couldn\'t split pages')
-        return
-
-    try:
         normalized_text, repaired_pages = source.clean(pages)
-        pbar.set_description(f"Normalized pages for {tick} {date}")
-    except Exception as e:
-        print(f"Error 3 : Couldn't normalized pages: {e}")
-        write_error(link, tick, accnum, date, year, 'Error 3', 'Couldn\'t normalized pages')
-        return
-
-    try:
         start_index, end_index = source.fix_page_numbers(normalized_text, repaired_pages)
-        pbar.set_description(f"Found Index : Beginning = {start_index}, End = {end_index}")
-    except Exception as e:
-        print(f"Error 4 : Couldn't find Index for MD&A: {e}")
-        write_error(link, tick, accnum, date, year, 'Error 4', 'Couldn\'t fix page numbers')
-        return
 
-    try:
         if start_index < end_index:
             md_and_a = source.find_mda(repaired_pages, start_index, end_index)
-            pbar.set_description(f'MD & A section for {tick} {date} successfully obtained!')
-    except Exception as e:
-        print(f"Error 6 : Extracting MD & A failed: {e}")
-        write_error(link, tick, accnum, date, year, 'Error 6', 'Extracting MD & A failed')
-        return
+        else:
+            return
+        
+        if md_and_a != "":
+            with open(documentsPath, "a") as documents, open(documentIdsPath, "a") as document_ids:
+                documents.write(md_and_a + '\n')
+                document_ids.write(str(accnum) + '\n')
     
-    if md_and_a != "":
-        with lock:
-            print(f"Writing! {str(accnum)}")
-            documents.write(md_and_a + '\n')
-            document_ids.write(str(accnum) + '\n')
-
-    pbar.update(1)  # Update progress bar
+    except Exception as e:
+        write_error(link, tick, accnum, date, year, 'Error', str(e))
 
 # Create progress bar
-with tqdm(total=maxCount) as pbar:
-    threads = []
-    # Create and start threads for processing each link
-    for link in links:
-        thread = threading.Thread(target=process_document, args=(link, pbar))
-        thread.start()
-        threads.append(thread)
+maxCount = len(links)  # Maximum count for progress bar
+if __name__ == '__main__':
+    with tqdm(total=maxCount) as pbar:
+        with Pool(cpu_count()) as pool:
+            for _ in tqdm(pool.imap_unordered(process_document, links), total=maxCount):
+                pbar.update(1)
 
-    # Wait for all threads to complete
-    for thread in threads:
-        thread.join()
 
-# Close files
-documents.close()
-document_ids.close()
