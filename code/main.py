@@ -107,5 +107,8 @@ maxCount = len(links)  # Maximum count for progress bar
 if __name__ == '__main__':
     with tqdm(total=maxCount, desc="Processing Documents", unit="docs", position=0, leave=True, dynamic_ncols=True, ascii=True, mininterval=0.5, maxinterval=5.0, miniters=1, unit_scale=True, unit_divisor=1000, smoothing=0.3, bar_format="{l_bar}{bar}| ETA: {remaining} ") as pbar:
         with Pool(cpu_count()) as pool:
-            for _ in tqdm(pool.imap_unordered(process_document, links), total=maxCount, desc="Parallel Processing", position=1, leave=False, dynamic_ncols=True, ascii=True, mininterval=0.5, maxinterval=5.0, miniters=1, unit_scale=True, unit_divisor=1000, smoothing=0.3, bar_format="{l_bar}{bar}| ETA: {remaining} "):
+            for _ in tqdm(pool.imap_unordered(process_document, links), total=maxCount):
                 pbar.update(1)
+
+
+
