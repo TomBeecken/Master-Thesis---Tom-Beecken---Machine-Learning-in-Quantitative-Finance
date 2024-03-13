@@ -1,120 +1,113 @@
-# import our libraries
-import re
-import requests
-import source
+import json
+import threading
 import pandas as pd
-import numpy as np
-from bs4 import BeautifulSoup
+import source
+from tqdm import tqdm
 
 ######### CONTROL VARIABLES #########
 
-error_table = pd.DataFrame(columns=['Ticker', 'Year', 'Reason', 'Explenation', 'Link'])
 linkPath = "../input/allLinks.csv"
 docidtofirmPath = "../results/docidtofirm.csv"
-errorsPath= "../results/errors.csv"
+errorsPath= "../results/errors.json"
 documentsPath = "../results/documents.txt"
 documentIdsPath= "../results/document_ids.txt"
 ######### IMPORT AND FORMAT DATA #########
 
 linkData = pd.read_csv(linkPath)
+linkData = linkData.head(20)
 links = linkData['link'].tolist()
-name = linkData['CompName'].tolist()
 tick = linkData['CompTick'].tolist()
 accnum = linkData['accessionNumber'].tolist()
 date = linkData['reportDate'].tolist()
 year = [str(x)[0:4] for x in date]
 
 
-docidtofirm = pd.DataFrame({'document_id':accnum, 'firm_id':tick, 'date':year})
+docidtofirm = pd.DataFrame({'document_id': accnum, 'firm_id': tick, 'date': year})
 documents = open(documentsPath, "w")
 document_ids = open(documentIdsPath, "w")
 
-maxCount=len(links)
-count = 0
+maxCount = len(links)
 
-################### START LOOP ###################
+lock = threading.Lock()
 
-for link in links:
+def write_error(link, ticker, year, reason, explanation):
+    error = {
+        'Link': link,
+        'Ticker': ticker,
+        'Year': year,
+        'Reason': reason,
+        'Explanation': explanation
+    }
+    with lock:
+        try:
+            with open(errorsPath, 'r') as file:
+                errors = json.load(file)
+        except FileNotFoundError:
+            errors = []
+        errors.append(error)
+        with open(errorsPath, 'w') as file:
+            json.dump(errors, file, indent=4)
 
-    print('-'*80)
-    print(f"Grabbing code for {tick[count]} {date[count][0:4]}")
-
-    ################### GET CODE ###################
+def process_document(link, count, pbar):
+    global documents, document_ids
 
     try:
         doc_code, doc_text = source.get_code(link)
-        print(f"Got code for {tick[count]} {date[count][0:4]}")
-    except:
-        print(f"Error 1 : Couldn't scrape code")
-        error = {'Ticker':tick[count], 'Year':date[count][0:4], 'Reason':'Error 1', 'Explanation':'Couldn\'t scrape code', 'Link':links[count]}
-        new_row = pd.DataFrame(data = error, index = [0])
-        error_table = pd.concat([error_table, new_row], ignore_index = True)
-        count += 1
-        continue
+        pbar.set_description(f"Grabbing code for {tick[count]} {date[count][0:4]}")
+    except Exception as e:
+        print(f"Error 1 : Couldn't scrape code: {e}")
+        write_error(link, tick[count], date[count][0:4], 'Error 1', 'Couldn\'t scrape code')
+        return
     
-    ################### SPLIT DOCUMENT ###################
     try:
         pages = source.split_doc(doc_text)
-        print(f"Split pages for {tick[count]} {date[count][0:4]}, we have {len(pages)} Pages!")
+        pbar.set_description(f"Split pages for {tick[count]} {date[count][0:4]}, we have {len(pages)} Pages!")
     except Exception as e:
         print(f"Error 2 : Couldn't split pages: {e}")
-        error = {'Ticker':tick[count], 'Year':date[count][0:4], 'Reason':'Error 2', 'Explanation':'Couldn\'t split pages', 'Link':links[count]}
-        new_row = pd.DataFrame(data = error, index = [0])
-        error_table = pd.concat([error_table, new_row], ignore_index = True)
-        count += 1
-        continue
+        write_error(link, tick[count], date[count][0:4], 'Error 2', 'Couldn\'t split pages')
+        return
 
-    ################### CLEAN + NORMALIZE DOCUMENT ###################
-
-    #try:
-    normalized_text, repaired_pages = source.clean(pages)
-    print(f"Normalized pages for {tick[count]} {date[count][0:4]}")
-    # except:
-    #     print(f"Error 3 : Couldn't normalized pages:")
-    #     error = {'Ticker':tick[count], 'Year':date[count][0:4], 'Reason':'Error 3', 'Explanation':'Couldn\'t normalized pages', 'Link':links[count]}
-    #     new_row = pd.DataFrame(data = error, index = [0])
-    #     error_table = pd.concat([error_table, new_row], ignore_index = True)
-    #     count += 1
-    #     continue
-
-    ################### GRAB INDEX NUMBERS ###################
+    try:
+        normalized_text, repaired_pages = source.clean(pages)
+        pbar.set_description(f"Normalized pages for {tick[count]} {date[count][0:4]}")
+    except Exception as e:
+        print(f"Error 3 : Couldn't normalized pages: {e}")
+        write_error(link, tick[count], date[count][0:4], 'Error 3', 'Couldn\'t normalized pages')
+        return
 
     try:
         start_index, end_index = source.fix_page_numbers(normalized_text, repaired_pages)
-        print(f"Found Index : Beginning = {start_index}, End = {end_index}")
-    except:
-        print(f"Error 4 : Couldn't find Index for MD&A")
-        error = {'Ticker':tick[count], 'Year':date[count][0:4], 'Reason':'Error 4', 'Explanation':'Couldn\'t fix page numbers', 'Link':links[count]}
-        new_row = pd.DataFrame(data = error, index = [0])
-        error_table = pd.concat([error_table, new_row], ignore_index = True)
-        count += 1
-        continue
-
-    ################### FIND, EXTRACT AND COMBINE MD&A SECTION ###################
+        pbar.set_description(f"Found Index : Beginning = {start_index}, End = {end_index}")
+    except Exception as e:
+        print(f"Error 4 : Couldn't find Index for MD&A: {e}")
+        write_error(link, tick[count], date[count][0:4], 'Error 4', 'Couldn\'t fix page numbers')
+        return
 
     try:
-        if (start_index < end_index):
+        if start_index < end_index:
             md_and_a = source.find_mda(repaired_pages, start_index, end_index)
-            print(f'MD & A section for {tick[count]} {date[count][0:4]} sucessfully obtained!')
-    except:
-        print(f"Error 6 : Extracting MD & A failed")
-        error = {'Ticker':tick[count], 'Year':date[count][0:4], 'Reason':'Error 6', 'Explanation':'Extracting MD & A failed', 'Link':links[count]}
-        new_row = pd.DataFrame(data = error, index = [0])
-        error_table = pd.concat([error_table, new_row], ignore_index = True)
-        count += 1
-        continue
+            pbar.set_description(f'MD & A section for {tick[count]} {date[count][0:4]} successfully obtained!')
+    except Exception as e:
+        print(f"Error 6 : Extracting MD & A failed: {e}")
+        write_error(link, tick[count], date[count][0:4], 'Error 6', 'Extracting MD & A failed')
+        return
     
-    ################### Insert section into DataFrame and text_file ###################
-
     if md_and_a != "":
-        documents.write(md_and_a + '\n')
-        document_ids.write(accnum[count] + '\n')
+        with lock:
+            documents.write(md_and_a + '\n')
+            document_ids.write(accnum[count] + '\n')
 
-    count += 1
-    print(f"Status: {count/maxCount*100}%: {count}")
+    pbar.update(1)
 
-################### EXPORT ###################
+with tqdm(total=maxCount) as pbar:
+    threads = []
+    for i, link in enumerate(links):
+        thread = threading.Thread(target=process_document, args=(link, i, pbar))
+        thread.start()
+        threads.append(thread)
+
+    for thread in threads:
+        thread.join()
 
 documents.close()
-docidtofirm.to_csv(docidtofirmPath)
-error_table.to_csv(errorsPath)
+docidtofirm.to_csv(docidtofirmPath, index=False)
