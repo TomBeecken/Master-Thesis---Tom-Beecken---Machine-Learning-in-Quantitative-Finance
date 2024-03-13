@@ -18,8 +18,26 @@ documentIdsPath = "../results/document_ids.txt"
 
 # Read input data from CSV file
 linkData = pd.read_csv(linkPath)
-#linkData = linkData.head(20)  # Limiting data to first 20 rows for demonstration
-links = set(linkData['link'].tolist())  # Extracting 'link' column and converting to list
+linkData = linkData.head(20)  # Limiting data to first 20 rows for demonstration
+links = linkData['link'].tolist()  # Extracting 'link' column and converting to list
+
+try:
+    #remove done links
+    accnums = linkData['accessionNumber'].tolist()
+    accslink = dict(zip(accnums, links))
+    acnnmus_done = [str(x)[:-1] for x in open(documentIdsPath).readlines()]
+    for accnum in acnnmus_done:
+        if accnum in accslink:
+            del accslink[accnum]
+    links = list(accslink.values())
+    #remove error links
+    with open(errorsPath, 'r') as file:
+        data = file.read()
+        errors = json.loads(data)
+        error_links = [error['Link'] for error in errors]
+        links = [link for link in links if link not in error_links]
+except:
+    pass
 
 # Creating DataFrame for document to firm mapping
 docidtofirm = pd.DataFrame({
@@ -72,7 +90,6 @@ def count_errors():
             errors = json.loads(data) if data.strip() else []
     except FileNotFoundError:
         return 0
-    
     return len(errors)
 
 def process_document(link):
