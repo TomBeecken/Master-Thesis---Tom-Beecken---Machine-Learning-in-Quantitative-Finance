@@ -20,7 +20,7 @@ links = linkData['link'].tolist()
 try:
     with open(documentIdsPath) as f:
         done_accnums = set(x.strip() for x in f.readlines())
-    links = [link for accnum, link in zip(linkData['accessionNumber'], links) if str(accnum) not in done_accnums]
+    links = set([link for accnum, link in zip(linkData['accessionNumber'], links) if str(accnum) not in done_accnums])
 except FileNotFoundError:
     print("No previously processed document IDs found.")
 print(f"Number of links to process: {len(links)}")
