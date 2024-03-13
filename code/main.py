@@ -3,6 +3,7 @@ import pandas as pd  # Importing pandas for data manipulation
 import source  # Importing the source module, assumed to contain necessary functions
 from multiprocessing import Pool, cpu_count  # Importing multiprocessing for parallel processing
 from tqdm import tqdm  # Importing tqdm for displaying progress bars
+import traceback  # Importing traceback module to print full error trace
 
 ######### CONTROL VARIABLES #########
 
@@ -96,7 +97,7 @@ def process_document(link):
                 document_ids.write(str(accnum) + '\n')
     
     except Exception as e:
-        print(f"Error: {e}")
+        traceback.print_exc()  # Print full traceback
         write_error(link, tick, accnum, date, year, 'Error', str(e))
 
 # Create progress bar
@@ -106,6 +107,3 @@ if __name__ == '__main__':
         with Pool(cpu_count()) as pool:
             for _ in tqdm(pool.imap_unordered(process_document, links), total=maxCount):
                 pbar.update(1)
-
-
-
