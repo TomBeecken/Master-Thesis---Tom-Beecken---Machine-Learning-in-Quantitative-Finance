@@ -71,6 +71,7 @@ def process_document(link):
         
         if md_and_a != "":
             with open(documentsPath, "a") as documents, open(documentIdsPath, "a") as document_ids:
+                print("Done")
                 documents.write(md_and_a + '\n')
                 document_ids.write(str(accnum) + '\n')
     
