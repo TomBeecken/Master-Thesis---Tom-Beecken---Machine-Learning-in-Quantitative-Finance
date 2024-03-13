@@ -1,12 +1,11 @@
-import json  # Importing the json module for handling JSON data
-import pandas as pd  # Importing pandas for data manipulation
-import source  # Importing the source module, assumed to contain necessary functions
-from multiprocessing import Pool, cpu_count  # Importing multiprocessing for parallel processing
-from tqdm import tqdm  # Importing tqdm for displaying progress bars
+import json
+import pandas as pd
+import source
+from multiprocessing import Pool, cpu_count
+from tqdm import tqdm
 
 ######### CONTROL VARIABLES #########
 
-# Define paths to input and output files
 linkPath = "../input/allLinks.csv"
 docidtofirmPath = "../results/docidtofirm.csv"
 documentsPath = "../results/documents.txt"
@@ -14,74 +13,47 @@ documentIdsPath = "../results/document_ids.txt"
 
 ######### IMPORT AND FORMAT DATA #########
 
-# Read input data from CSV file
-linkData = pd.read_csv(linkPath)
-#linkData = linkData.head(20)  # Limiting data to first 20 rows for demonstration
-links = linkData['link'].tolist()  # Extracting 'link' column and converting to list
+linkData = pd.read_csv(linkPath).head(20)
+links = linkData['link'].tolist()
 
+# Improve efficiency by reading document IDs once
 try:
-    #remove done links
-    accnums = linkData['accessionNumber'].tolist()
-    accslink = dict(zip(accnums, links))
-    acnnmus_done = [str(x)[:-1] for x in open(documentIdsPath).readlines()]
-    for accnum in acnnmus_done:
-        if accnum in accslink:
-            del accslink[accnum]
-    links = list(accslink.values())
-except:
-    pass
+    with open(documentIdsPath) as f:
+        done_accnums = set(x.strip() for x in f.readlines())
+    links = [link for accnum, link in zip(linkData['accessionNumber'], links) if str(accnum) not in done_accnums]
+except FileNotFoundError:
+    print("No previously processed document IDs found.")
+print(f"Number of links to process: {len(links)}")
 
-# Creating DataFrame for document to firm mapping
+# DataFrame for document to firm mapping
 docidtofirm = pd.DataFrame({
-    'document_id': linkData['accessionNumber'],  # Extracting 'accessionNumber' column
-    'firm_id': linkData['CompTick'],  # Extracting 'CompTick' column
-    'date': [str(x)[0:4] for x in linkData['reportDate']]  # Extracting year from 'reportDate' column
+    'document_id': linkData['accessionNumber'],
+    'firm_id': linkData['CompTick'],
+    'date': linkData['reportDate'].astype(str).str[:4]
 })
-docidtofirm.to_csv(docidtofirmPath, index=False)  # Writing docidtofirm DataFrame to CSV file
-
+docidtofirm.to_csv(docidtofirmPath, index=False)
 
 def process_document(link):
-    """
-    Function to process document for a given link.
-
-    Args:
-    - link: Link of the document to be processed
-    """
     try:
-        # Extracting relevant information from linkData based on the link
-        tick = linkData.loc[linkData['link'] == link, 'CompTick'].iloc[0]
-        accnum = linkData.loc[linkData['link'] == link, 'accessionNumber'].iloc[0]
-        date = str(linkData.loc[linkData['link'] == link, 'reportDate'].iloc[0])[0:4]
-        year = str(linkData.loc[linkData['link'] == link, 'reportDate'].iloc[0])[0:4]
-
-        # Check if accnum already exists in document_ids
-        try:
-            if str(accnum) in [str(x)[:-1] for x in open(documentIdsPath).readlines()]:
-                return
-        except:
-            pass
+        relevant_data = linkData[linkData['link'] == link].iloc[0]
+        accnum = relevant_data['accessionNumber']
 
         doc_code, doc_text = source.get_code(link)
-
-        # Similar try-except blocks for subsequent steps of document processing
         pages = source.split_doc(doc_text)
         normalized_text, repaired_pages = source.clean(pages)
         start_index, end_index = source.fix_page_numbers(normalized_text, repaired_pages)
         md_and_a = source.find_mda(repaired_pages, start_index, end_index)
-        
-        if md_and_a != "":
+
+        if md_and_a:
             with open(documentsPath, "a") as documents, open(documentIdsPath, "a") as document_ids:
-                print("Done")
                 documents.write(md_and_a + '\n')
                 document_ids.write(str(accnum) + '\n')
-    
-    except:
-        pass
 
-# Create progress bar
-maxCount = len(links)  # Maximum count for progress bar
+    except Exception as e:
+        print(f"Error processing document {link}: {e}")
+
 if __name__ == '__main__':
-    with tqdm(total=maxCount, desc="Processing Documents", unit="docs", position=0, leave=True, dynamic_ncols=True, ascii=True, mininterval=0.5, maxinterval=5.0, miniters=1, unit_scale=True, unit_divisor=1000, smoothing=0.3, bar_format="{l_bar}{bar}| ETA: {remaining} ") as pbar:
+    with tqdm(total=len(links), desc="Processing Documents", unit="docs") as pbar:
         with Pool(cpu_count()) as pool:
-            for _ in tqdm(pool.imap_unordered(process_document, links), total=maxCount):
+            for _ in pool.imap_unordered(process_document, links):
                 pbar.update(1)

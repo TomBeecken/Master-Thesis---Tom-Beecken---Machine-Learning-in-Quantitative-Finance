@@ -28,7 +28,7 @@ def restore_windows_1252_characters(restore_string):
 ######### DEFINE SOUP + GET CODE #########
 
 def load_response(url):
-    with open(f"results/content/{url.replace('/', '_')}", 'rb') as f:
+    with open(f"../results/content/{url.replace('/', '_')}", 'rb') as f:
         content = f.read()
         return content
 
