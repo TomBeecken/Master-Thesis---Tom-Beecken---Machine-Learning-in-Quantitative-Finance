@@ -28,9 +28,9 @@ docidtofirm = pd.DataFrame({
 })
 docidtofirm.to_csv(docidtofirmPath, index=False)  # Writing docidtofirm DataFrame to CSV file
 
-# Opening files for writing documents and document IDs
-documents = open(documentsPath, "w")
-document_ids = open(documentIdsPath, "w")
+# Opening files for writing documents and document IDs in append mode
+documents = open(documentsPath, "a")  # Open in append mode
+document_ids = open(documentIdsPath, "a")  # Open in append mode
 
 maxCount = len(links)  # Maximum count for progress bar
 
@@ -84,7 +84,7 @@ def process_document(link, pbar):
     year = str(linkData.loc[linkData['link'] == link, 'reportDate'].iloc[0])[0:4]
 
     # Check if accnum already exists in document_ids
-    if str(accnum) in open(documentIdsPath).read():
+    if str(accnum) in [str(x)[:-1] for x in open(documentIdsPath).readlines()]:
         pbar.update(1)  # Update progress bar
         return
 
@@ -132,6 +132,7 @@ def process_document(link, pbar):
     
     if md_and_a != "":
         with lock:
+            print(f"Writing! {str(accnum)}")
             documents.write(md_and_a + '\n')
             document_ids.write(str(accnum) + '\n')
 
