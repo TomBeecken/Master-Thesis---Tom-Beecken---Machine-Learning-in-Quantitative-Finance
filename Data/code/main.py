@@ -33,6 +33,8 @@ docidtofirm = pd.DataFrame({
 })
 docidtofirm.to_csv(docidtofirmPath, index=False)
 
+links = list(links)[::-1]
+
 def process_document(link):
     try:
         relevant_data = linkData[linkData['link'] == link].iloc[0]
@@ -49,8 +51,9 @@ def process_document(link):
                 documents.write(md_and_a + '\n')
                 document_ids.write(str(accnum) + '\n')
 
-    except Exception as e:
-        print(f"Error processing document {link}: {e}")
+    except:# Exception as e:
+        pass
+        #print(f"Error processing document {link}: {e}")
 
 if __name__ == '__main__':
     with tqdm(total=len(links), desc="Processing Documents", unit="docs") as pbar:
